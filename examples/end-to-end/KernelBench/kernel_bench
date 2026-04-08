@@ -10,6 +10,7 @@ from pathlib import Path
 from lighthouse.execution.runner import Runner
 from lighthouse.execution.init import KernelArgumentParser
 from lighthouse.pipeline.driver import CompilerDriver
+from lighthouse.schedule import convert_function_results
 from lighthouse import dialects as lh_dialects
 from lighthouse import ingress as lh_ingress
 
@@ -69,12 +70,18 @@ def import_kb_module(
         raise e
 
 
-def define_compiler_pipeline(pipeline_yaml: str | None, benchmark: bool = False) -> None:
+def define_compiler_pipeline(
+    pipeline_yaml: str | None, benchmark: bool = False
+) -> None:
     """
     Defines the compiler pipeline by adding stages to the driver.
     The stages can be defined in a YAML file, or added manually in this function.
     """
     driver = CompilerDriver(mlir_file)
+
+    with driver.context:
+        lh_dialects.register_and_load()
+        driver.add_module_stage(convert_function_results(args.entry_point))
 
     if benchmark:
         # Calling the benchmark wrapper, not the entry point.
@@ -101,6 +108,7 @@ def define_compiler_pipeline(pipeline_yaml: str | None, benchmark: bool = False)
     driver.add_stages(add_lower_to_llvm_stages())
 
     return driver
+
 
 if __name__ == "__main__":
     Parser = argparse.ArgumentParser(

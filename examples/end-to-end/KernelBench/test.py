@@ -14,21 +14,30 @@ if __name__ == "__main__":
     kb_program = Path(__file__).parent / "kernel_bench"
     project_root = Path(__file__).parent.parent.parent.parent
     kb_path = project_root / "third_party" / "KernelBench" / "KernelBench"
-    kb_kernels = [ kb_path / kb_script for kb_script in [
-      "level1/1_Square_matrix_multiplication_.py",
-      "level2/2_Standard_matrix_multiplication_.py",
-    ]]
+    kb_kernels = [
+        kb_path / kb_script
+        for kb_script in [
+            "level1/1_Square_matrix_multiplication_.py",
+            "level2/2_Standard_matrix_multiplication_.py",
+        ]
+    ]
 
     for kb_kernel in kb_kernels:
-      result = subprocess.run(
-          [kb_program, str(kb_kernel), "--input-shape", "4096x4096xf32xid,4096x4096xf32xrnd"],
-          capture_output=True,
-          text=True,
-      )
+        result = subprocess.run(
+            [
+                kb_program,
+                str(kb_kernel),
+                "--input-shape",
+                "4096x4096xf32xid,4096x4096xf32xrnd,4096x4096xf32x0",
+                "--print-tensor=3",
+            ],
+            capture_output=True,
+            text=True,
+        )
 
-      print("STDOUT:")
-      print(result.stdout)
-      print("STDERR:")
-      print(result.stderr)
+        print("STDOUT:")
+        print(result.stdout)
+        print("STDERR:")
+        print(result.stderr)
 
-      assert result.returncode == 0, "Execution failed"
+        assert result.returncode == 0, "Execution failed"
