@@ -18,19 +18,25 @@ if __name__ == "__main__":
         kb_path / kb_script
         for kb_script in [
             "level1/1_Square_matrix_multiplication_.py",
-            "level2/2_Standard_matrix_multiplication_.py",
+            "level1/2_Standard_matrix_multiplication_.py",
         ]
+    ]
+    initializers = [
+        "32x32xf32xrnd,32x32xf32xrnd,32x32xf32x0",  # level1/1_Square_matrix_multiplication_.py
+        "16x32xf32xrnd,32x16xf32xrnd,16x16xf32x0",  # level1/2_Standard_matrix_multiplication_.py
     ]
 
     for kb_kernel in kb_kernels:
+        command_line = [
+            str(kb_program),
+            str(kb_kernel),
+            "--input-shape",
+            initializers[kb_kernels.index(kb_kernel)],
+            "--print-tensor=3",
+        ]
+        print(f"Running command: {' '.join(command_line)}")
         result = subprocess.run(
-            [
-                kb_program,
-                str(kb_kernel),
-                "--input-shape",
-                "4096x4096xf32xid,4096x4096xf32xrnd,4096x4096xf32x0",
-                "--print-tensor=3",
-            ],
+            command_line,
             capture_output=True,
             text=True,
         )

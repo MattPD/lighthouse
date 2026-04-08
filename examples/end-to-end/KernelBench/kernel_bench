@@ -6,6 +6,7 @@ import sys
 import tempfile
 import numpy as np
 from pathlib import Path
+import torch
 
 from lighthouse.execution.runner import Runner
 from lighthouse.execution.init import KernelArgumentParser
@@ -37,24 +38,23 @@ def add_lower_to_llvm_stages() -> list[str]:
 def import_kb_module(
     filepath: str | Path,
     model_class_name: str = "Model",
-    init_args_fn_name: str | None = None,
-    init_kwargs_fn_name: str | None = None,
     dialect: str = "linalg-on-tensors",
+    sample_args=None,
+    model_init_args=None,
 ) -> Path:
     """
     Imports a PyTorch model from a KernelBench file and converts it to an MLIR module in the specified dialect.
     The MLIR module is saved into a file to be passed to the CompilerDrviver for optimization and execution.
     The Python file must define a Kernel Bench module file.
     Return: The path to the generated MLIR module file.
-    FIXME: Use the input shape argument to define the arguments for the kernel.
     """
     try:
         mlir_module = lh_ingress.torch.import_from_file(
             filepath=filepath,
             model_class_name=model_class_name,
-            init_args_fn_name=init_args_fn_name,
-            init_kwargs_fn_name=init_kwargs_fn_name,
             dialect=dialect,
+            sample_args=sample_args,
+            model_init_args=model_init_args,
         )
         assert isinstance(mlir_module, str)
         temp_dir = tempfile.TemporaryDirectory(delete=False)
@@ -182,7 +182,16 @@ if __name__ == "__main__":
         np.random.seed(int(datetime.now().timestamp()))
 
     # Load the payload module.
-    mlir_file = import_kb_module(args.kernel_bench_model)
+    # Build sample torch tensors from --input-shape to override hard-coded sizes in get_inputs().
+
+    # Initialize the device data
+    buffers = [arg.arg for arg in KernelArgumentParser.parse_all(args.input_shape)]
+    sample_tensors = [
+        torch.from_numpy(buf) for buf in buffers[:-1]
+    ]  # Exclude the output buffer
+
+    # Import the model with the custom sample inputs from the command line.
+    mlir_file = import_kb_module(args.kernel_bench_model, sample_args=sample_tensors)
 
     # Create the driver and run the pipeline.
     driver = define_compiler_pipeline(args.pipeline, args.benchmark)
@@ -194,9 +203,6 @@ if __name__ == "__main__":
 
     # Create the runner and execute/benchmark the module.
     runner = Runner(optimized_module, opt_level=args.O)
-
-    # Initialize the device data
-    buffers = [arg.arg for arg in KernelArgumentParser.parse_all(args.input_shape)]
 
     if args.benchmark:
         print("Running the benchmark...")
